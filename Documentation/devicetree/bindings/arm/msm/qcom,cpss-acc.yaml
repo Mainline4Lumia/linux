@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: (GPL-2.0-or-later OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/msm/qcom,cpss-acc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Cortex-A7 Processor Sub-system (CPSS) Application Clock Controller (ACC)
+
+maintainers:
+  - Kumar Gala <galak@codeaurora.org>
+
+description: |
+  The CPSS ACC provides clock, power domain, and reset control to a Cortex-A7
+  processor. There is one ACC register region per CPU within the PSS remapped
+  region as well as an alias register region that remaps accesses to the ACC
+  associated with the CPU accessing the region.
+
+properties:
+  compatible:
+    enum:
+      - qcom,cpss-acc
+
+  reg:
+    minItems: 1
+    maxItems: 2
+    items:
+      - description: ACC base register region
+      - description: optional ACC alias register region
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    clock-controller@f9088000 {
+      compatible = "qcom,cpss-acc";
+      reg = <0xf9088000 0x1000>, <0xf9008000 0x1000>;
+    };
