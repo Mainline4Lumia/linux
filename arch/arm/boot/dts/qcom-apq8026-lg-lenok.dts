@@ -114,6 +114,45 @@
 	};
 };
 
+&dsi0 {
+	status = "okay";
+
+	vdda-supply = <&pm8226_l4>;
+	vdd-supply = <&pm8226_l18>;
+	vddio-supply = <&pm8226_l8>;
+
+	panel@0 {
+		compatible = "lgd,lg4237";
+		reg = <0>;
+
+		reset-gpios = <&tlmm 108 GPIO_ACTIVE_LOW>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&dsi0_out>;
+			};
+		};
+	};
+};
+
+&dsi0_out {
+	data-lanes = <0>;
+	remote-endpoint = <&panel_in>;
+};
+
+&dsi_phy0 {
+	status = "okay";
+	vddio-supply = <&pm8226_l8>;
+};
+
+&mdp {
+	status = "okay";
+};
+
+&mdss {
+	status = "okay";
+};
+
 &rpm_requests {
 	pm8226-regulators {
 		compatible = "qcom,rpm-pm8226-regulators";
