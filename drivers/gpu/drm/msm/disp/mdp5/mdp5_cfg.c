@@ -22,8 +22,12 @@ static const struct mdp5_cfg_hw msm8x74v1_config = {
 			0,
 	},
 	.smp = {
+		// qcom,mdss-smp-data = <22 4096>;
 		.mmb_count = 22,
 		.mmb_size = 4096,
+		// qcom,mdss-pipe-vig-fetch-id = <1 4 7>;
+		// qcom,mdss-pipe-dma-fetch-id = <10 13>;
+		// qcom,mdss-pipe-rgb-fetch-id = <16 17 18>;
 		.clients = {
 			[SSPP_VIG0] =  1, [SSPP_VIG1] =  4, [SSPP_VIG2] =  7,
 			[SSPP_DMA0] = 10, [SSPP_DMA1] = 13,
@@ -32,11 +36,13 @@ static const struct mdp5_cfg_hw msm8x74v1_config = {
 	},
 	.ctl = {
 		.count = 5,
+		// qcom,mdss-ctl-off = <0x00000600 0x00000700 0x00000800 0x00000900 0x0000A00>;
 		.base = { 0x00500, 0x00600, 0x00700, 0x00800, 0x00900 },
 		.flush_hw_mask = 0x0003ffff,
 	},
 	.pipe_vig = {
 		.count = 3,
+		// qcom,mdss-pipe-vig-off = <0x00001200 0x00001600 0x00001A00>;
 		.base = { 0x01100, 0x01500, 0x01900 },
 		.caps = MDP_PIPE_CAP_HFLIP |
 			MDP_PIPE_CAP_VFLIP |
@@ -46,6 +52,7 @@ static const struct mdp5_cfg_hw msm8x74v1_config = {
 	},
 	.pipe_rgb = {
 		.count = 3,
+		// qcom,mdss-pipe-rgb-off = <0x00001E00 0x00002200 0x00002600>;
 		.base = { 0x01d00, 0x02100, 0x02500 },
 		.caps = MDP_PIPE_CAP_HFLIP |
 			MDP_PIPE_CAP_VFLIP |
@@ -54,6 +61,7 @@ static const struct mdp5_cfg_hw msm8x74v1_config = {
 	},
 	.pipe_dma = {
 		.count = 2,
+		// qcom,mdss-pipe-dma-off = <0x00002A00 0x00002E00>;
 		.base = { 0x02900, 0x02d00 },
 		.caps = MDP_PIPE_CAP_HFLIP |
 			MDP_PIPE_CAP_VFLIP |
@@ -61,6 +69,9 @@ static const struct mdp5_cfg_hw msm8x74v1_config = {
 	},
 	.lm = {
 		.count = 5,
+		// qcom,mdss-mixer-intf-off = <0x00003200 0x00003600
+		// 			    0x00003A00>;
+		// qcom,mdss-mixer-wb-off = <0x00003E00 0x00004200>;
 		.base = { 0x03100, 0x03500, 0x03900, 0x03d00, 0x04100 },
 		.instances = {
 				{ .id = 0, .pp = 0, .dspp = 0,
@@ -75,19 +86,25 @@ static const struct mdp5_cfg_hw msm8x74v1_config = {
 				  .caps = MDP_LM_CAP_WB },
 			     },
 		.nb_stages = 5,
+		// qcom,max-mixer-width = <2048>;
 		.max_width = 2048,
 		.max_height = 0xFFFF,
 	},
 	.dspp = {
 		.count = 3,
+		// qcom,mdss-dspp-off = <0x00004600 0x00004A00 0x00004E00>;
 		.base = { 0x04500, 0x04900, 0x04d00 },
 	},
 	.pp = {
 		.count = 3,
+		// qcom,mdss-pingpong-off = <0x00021B00 0x00021C00 0x00021D00>;
 		.base = { 0x21a00, 0x21b00, 0x21c00 },
 	},
 	.intf = {
+		// qcom,mdss-intf-off = <0x00021100 0x00021300
+		// 			   0x00021500 0x00021700>;
 		.base = { 0x21000, 0x21200, 0x21400, 0x21600 },
+		// ???????????
 		.connect = {
 			[0] = INTF_eDP,
 			[1] = INTF_DSI,
@@ -96,13 +113,19 @@ static const struct mdp5_cfg_hw msm8x74v1_config = {
 		},
 	},
 	.perf = {
+		// qcom,mdss-ab-factor = <2 1>;		/* 2 times    */
 		.ab_inefficiency = 200,
+		// qcom,mdss-ib-factor = <6 5>;		/* 1.2 times  */
 		.ib_inefficiency = 120,
+		// qcom,mdss-clk-factor = <5 4>;		/* 1.25 times */
 		.clk_inefficiency = 125
 	},
+	// qcom,max-clk-rate = <320000000>;
 	.max_clk = 200000000,
 };
 
+// FIXME
+// <3>[   66.315999] msm fd900000.mdss: [drm:mdp5_cfg_init [msm]] *ERROR* unexpected MDP minor revision: v1.1
 static const struct mdp5_cfg_hw msm8x26_config = {
 	.name = "msm8x26",
 	.mdp = {
