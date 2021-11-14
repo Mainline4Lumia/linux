@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2015, The Linux Foundation. All rights reserved.
  */
+#define DEBUG
 
 #include <linux/clk.h>
 #include <linux/delay.h>
