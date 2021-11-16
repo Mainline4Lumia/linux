@@ -11,6 +11,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/power/qcom-rpmpd.h>
 #include <dt-bindings/reset/qcom,gcc-msm8974.h>
+#include <dt-bindings/clock/qcom,mmcc-msm8974.h>
 
 / {
 	#address-cells = <1>;
@@ -210,7 +211,15 @@
 			reg = <0xf9011000 0x1000>;
 		};
 
-		sdhc_1: mmc@f9824900 {
+		mmcc: clock-controller@fd8c0000 {
+			compatible = "qcom,mmcc-msm8226";
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+			#power-domain-cells = <1>;
+			reg = <0xfd8c0000 0x6000>;
+		};
+
+		sdhc_1: sdhci@f9824900 {
 			compatible = "qcom,msm8226-sdhci", "qcom,sdhci-msm-v4";
 			reg = <0xf9824900 0x11c>, <0xf9824000 0x800>;
 			reg-names = "hc", "core";
