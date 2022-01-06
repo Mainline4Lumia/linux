@@ -3,6 +3,7 @@
  * Copyright (c) 2021, Dominik Kobinski <Dominduchami@outlook.com>
  * Copyright (c) 2021, Ivaylo Ivanov <ivo.ivanov@null.net>
  * Copyright (c) 2021, Jack Matthews <jm5112356@gmail.com>
+ * Copyright (c) 2022, Rayyan Ansari <rayyan@ansari.sh>
  */
 /dts-v1/;
 
@@ -11,6 +12,37 @@
 / {
 	model = "Nokia Lumia 730";
 	compatible = "microsoft,superman","qcom,msm8226";
+};
+
+&blsp1_i2c2 {
+    status = "okay";
+
+    ak09911: magnetometer@c {
+		compatible = "asahi-kasei,ak09911";
+		reg = <0x0c>;
+
+		vdd-supply = <&pm8226_l15>;
+		vid-supply = <&pm8226_l6>;
+	};
+
+    kx022_1020: accelerometer@1e {
+        /*
+         * This is actually the Kionix KX022-1020, but the KX023-1025 driver
+         * seems to work fine for now.
+         */
+        compatible = "kionix,kx023-1025";
+        reg = <0x1e>;
+
+        interrupt-parent = <&tlmm>;
+        interrupts = <63 IRQ_TYPE_EDGE_RISING>;
+
+        vdd-supply = <&pm8226_l15>;
+        vddio-supply = <&pm8226_l6>;
+
+        mount-matrix =  "1",  "0",  "0",
+                        "0", "-1",  "0",
+                        "0",  "0",  "1";
+    };
 };
 
 &blsp1_i2c4 {
