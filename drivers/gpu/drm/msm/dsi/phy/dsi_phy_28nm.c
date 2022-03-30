@@ -526,7 +526,9 @@ static const struct clk_ops clk_ops_dsi_pll_28nm_vco_hpm = {
 	.round_rate = dsi_pll_28nm_clk_round_rate,
 	.set_rate = dsi_pll_28nm_clk_set_rate,
 	.recalc_rate = dsi_pll_28nm_clk_recalc_rate,
-	.prepare = dsi_pll_28nm_vco_prepare_hpm_8226, // FIXME
+	// FIXME
+	.prepare = dsi_pll_28nm_vco_prepare_hpm,
+	//.prepare = dsi_pll_28nm_vco_prepare_hpm_8226,
 	.unprepare = dsi_pll_28nm_vco_unprepare,
 	.is_enabled = dsi_pll_28nm_clk_is_enabled,
 };
