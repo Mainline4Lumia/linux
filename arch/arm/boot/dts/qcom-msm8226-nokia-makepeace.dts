@@ -15,3 +15,18 @@
 	compatible = "nokia,makepeace", "qcom,msm8226";
 	chassis-type = "handset";
 };
+
+&blsp1_i2c3 {
+	status = "okay";
+
+	nfc@28 {
+		compatible = "nxp,nxp-nci-i2c";
+		reg = <0x28>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <21 IRQ_TYPE_LEVEL_HIGH>;
+
+		enable-gpios = <&tlmm 20 GPIO_ACTIVE_HIGH>;
+		firmware-gpios = <&tlmm 22 GPIO_ACTIVE_HIGH>;
+	};
+};
