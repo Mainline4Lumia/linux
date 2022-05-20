@@ -138,7 +138,7 @@ void noinstr do_io_irq(struct pt_regs *regs)
 	struct pt_regs *old_regs = set_irq_regs(regs);
 	int from_idle;
 
-	irq_enter();
+	irq_enter_rcu();
 
 	if (user_mode(regs)) {
 		update_timer_sys();
@@ -158,7 +158,8 @@ void noinstr do_io_irq(struct pt_regs *regs)
 			do_irq_async(regs, IO_INTERRUPT);
 	} while (MACHINE_IS_LPAR && irq_pending(regs));
 
-	irq_exit();
+	irq_exit_rcu();
+
 	set_irq_regs(old_regs);
 	irqentry_exit(regs, state);
 
@@ -172,7 +173,7 @@ void noinstr do_ext_irq(struct pt_regs *regs)
 	struct pt_regs *old_regs = set_irq_regs(regs);
 	int from_idle;
 
-	irq_enter();
+	irq_enter_rcu();
 
 	if (user_mode(regs)) {
 		update_timer_sys();
@@ -190,7 +191,7 @@ void noinstr do_ext_irq(struct pt_regs *regs)
 
 	do_irq_async(regs, EXT_INTERRUPT);
 
-	irq_exit();
+	irq_exit_rcu();
 	set_irq_regs(old_regs);
 	irqentry_exit(regs, state);
 
@@ -341,7 +342,7 @@ static irqreturn_t do_ext_interrupt(int irq, void *dummy)
 	struct ext_int_info *p;
 	int index;
 
-	ext_code = *(struct ext_code *) &regs->int_code;
+	ext_code.int_code = regs->int_code;
 	if (ext_code.code != EXT_IRQ_CLK_COMP)
 		set_cpu_flag(CIF_NOHZ_DELAY);
 

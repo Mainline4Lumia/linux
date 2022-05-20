@@ -44,13 +44,16 @@ struct perf_event_attr;
 /* perf sample has 16 bits size limit */
 #define PERF_SAMPLE_MAX_SIZE (1 << 16)
 
+/* number of register is bound by the number of bits in regs_dump::mask (64) */
+#define PERF_SAMPLE_REGS_CACHE_SIZE (8 * sizeof(u64))
+
 struct regs_dump {
 	u64 abi;
 	u64 mask;
 	u64 *regs;
 
 	/* Cached values/mask filled by first register access. */
-	u64 cache_regs[PERF_REGS_MAX];
+	u64 cache_regs[PERF_SAMPLE_REGS_CACHE_SIZE];
 	u64 cache_mask;
 };
 
@@ -98,9 +101,11 @@ enum {
 	PERF_IP_FLAG_IN_TX		= 1ULL << 10,
 	PERF_IP_FLAG_VMENTRY		= 1ULL << 11,
 	PERF_IP_FLAG_VMEXIT		= 1ULL << 12,
+	PERF_IP_FLAG_INTR_DISABLE	= 1ULL << 13,
+	PERF_IP_FLAG_INTR_TOGGLE	= 1ULL << 14,
 };
 
-#define PERF_IP_FLAG_CHARS "bcrosyiABExgh"
+#define PERF_IP_FLAG_CHARS "bcrosyiABExghDt"
 
 #define PERF_BRANCH_MASK		(\
 	PERF_IP_FLAG_BRANCH		|\
@@ -179,6 +184,8 @@ enum perf_synth_id {
 	PERF_SYNTH_INTEL_PWRX,
 	PERF_SYNTH_INTEL_CBR,
 	PERF_SYNTH_INTEL_PSB,
+	PERF_SYNTH_INTEL_EVT,
+	PERF_SYNTH_INTEL_IFLAG_CHG,
 };
 
 /*
@@ -275,6 +282,45 @@ struct perf_synth_intel_psb {
 	u32 padding;
 	u32 reserved;
 	u64 offset;
+};
+
+struct perf_synth_intel_evd {
+	union {
+		struct {
+			u8	evd_type;
+			u8	reserved[7];
+		};
+		u64	et;
+	};
+	u64	payload;
+};
+
+/* Intel PT Event Trace */
+struct perf_synth_intel_evt {
+	u32 padding;
+	union {
+		struct {
+			u32	type		:  5,
+				reserved	:  2,
+				ip		:  1,
+				vector		:  8,
+				evd_cnt		: 16;
+		};
+		u32	cfe;
+	};
+	struct perf_synth_intel_evd evd[0];
+};
+
+struct perf_synth_intel_iflag_chg {
+	u32 padding;
+	union {
+		struct {
+			u32	iflag		:  1,
+				via_branch	:  1;
+		};
+		u32	flags;
+	};
+	u64	branch_ip; /* If via_branch */
 };
 
 /*

@@ -12,7 +12,7 @@
 static netdev_tx_t mctp_test_dev_tx(struct sk_buff *skb,
 				    struct net_device *ndev)
 {
-	kfree(skb);
+	kfree_skb(skb);
 	return NETDEV_TX_OK;
 }
 
@@ -54,7 +54,6 @@ struct mctp_test_dev *mctp_test_create_dev(void)
 
 	rcu_read_lock();
 	dev->mdev = __mctp_dev_get(ndev);
-	mctp_dev_hold(dev->mdev);
 	rcu_read_unlock();
 
 	return dev;

@@ -28,7 +28,6 @@
 #include <linux/gfp.h>
 #include <linux/syscore_ops.h>
 #include <linux/ctype.h>
-#include <linux/genhd.h>
 #include <linux/ktime.h>
 #include <linux/security.h>
 #include <linux/secretmem.h>
@@ -689,11 +688,13 @@ static int load_image_and_restore(void)
 
 	lock_device_hotplug();
 	error = create_basic_memory_bitmaps();
-	if (error)
+	if (error) {
+		swsusp_close(FMODE_READ | FMODE_EXCL);
 		goto Unlock;
+	}
 
 	error = swsusp_read(&flags);
-	swsusp_close(FMODE_READ);
+	swsusp_close(FMODE_READ | FMODE_EXCL);
 	if (!error)
 		error = hibernation_restore(flags & SF_PLATFORM_MODE);
 
@@ -983,7 +984,7 @@ static int software_resume(void)
 	/* The snapshot device should not be opened while we're running */
 	if (!hibernate_acquire()) {
 		error = -EBUSY;
-		swsusp_close(FMODE_READ);
+		swsusp_close(FMODE_READ | FMODE_EXCL);
 		goto Unlock;
 	}
 
@@ -1018,7 +1019,7 @@ static int software_resume(void)
 	pm_pr_dbg("Hibernation image not present or could not be loaded.\n");
 	return error;
  Close_Finish:
-	swsusp_close(FMODE_READ);
+	swsusp_close(FMODE_READ | FMODE_EXCL);
 	goto Finish;
 }
 
@@ -1328,7 +1329,7 @@ static int __init resumedelay_setup(char *str)
 	int rc = kstrtouint(str, 0, &resume_delay);
 
 	if (rc)
-		return rc;
+		pr_warn("resumedelay: bad option string '%s'\n", str);
 	return 1;
 }
 

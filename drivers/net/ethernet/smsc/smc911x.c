@@ -1648,7 +1648,7 @@ static int smc911x_ethtool_geteeprom(struct net_device *dev,
 			return ret;
 		if ((ret=smc911x_ethtool_read_eeprom_byte(dev, &eebuf[i]))!=0)
 			return ret;
-		}
+	}
 	memcpy(data, eebuf+eeprom->offset, eeprom->len);
 	return 0;
 }
@@ -1667,11 +1667,11 @@ static int smc911x_ethtool_seteeprom(struct net_device *dev,
 			return ret;
 		/* write byte */
 		if ((ret=smc911x_ethtool_write_eeprom_byte(dev, *data))!=0)
-			 return ret;
+			return ret;
 		if ((ret=smc911x_ethtool_write_eeprom_cmd(dev, E2P_CMD_EPC_CMD_WRITE_, i ))!=0)
 			return ret;
-		}
-	 return 0;
+	}
+	return 0;
 }
 
 static int smc911x_ethtool_geteeprom_len(struct net_device *dev)
@@ -2072,6 +2072,11 @@ static int smc911x_drv_probe(struct platform_device *pdev)
 
 	ndev->dma = (unsigned char)-1;
 	ndev->irq = platform_get_irq(pdev, 0);
+	if (ndev->irq < 0) {
+		ret = ndev->irq;
+		goto release_both;
+	}
+
 	lp = netdev_priv(ndev);
 	lp->netdev = ndev;
 #ifdef SMC_DYNAMIC_BUS_CONFIG
