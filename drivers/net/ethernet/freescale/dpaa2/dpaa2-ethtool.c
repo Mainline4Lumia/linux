@@ -44,6 +44,8 @@ static char dpaa2_ethtool_extras[][ETH_GSTRING_LEN] = {
 	"[drv] tx conf bytes",
 	"[drv] tx sg frames",
 	"[drv] tx sg bytes",
+	"[drv] tx tso frames",
+	"[drv] tx tso bytes",
 	"[drv] rx sg frames",
 	"[drv] rx sg bytes",
 	"[drv] tx converted sg frames",
@@ -278,7 +280,7 @@ static void dpaa2_eth_get_ethtool_stats(struct net_device *net_dev,
 	/* Per-channel stats */
 	for (k = 0; k < priv->num_channels; k++) {
 		ch_stats = &priv->channel[k]->stats;
-		for (j = 0; j < sizeof(*ch_stats) / sizeof(__u64) - 1; j++)
+		for (j = 0; j < DPAA2_ETH_CH_STATS; j++)
 			*((__u64 *)data + i + j) += *((__u64 *)ch_stats + j);
 	}
 	i += j;

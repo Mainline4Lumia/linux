@@ -128,7 +128,7 @@ struct objtool_file *objtool_open_read(const char *_objname)
 	INIT_LIST_HEAD(&file.retpoline_call_list);
 	INIT_LIST_HEAD(&file.static_call_list);
 	INIT_LIST_HEAD(&file.mcount_loc_list);
-	file.c_file = !vmlinux && find_section_by_name(file.elf, ".comment");
+	INIT_LIST_HEAD(&file.endbr_list);
 	file.ignore_unreachables = no_unreachable;
 	file.hints = false;
 
@@ -151,6 +151,10 @@ void objtool_pv_add(struct objtool_file *f, int idx, struct symbol *func)
 	 */
 	if (!strcmp(func->name, "_paravirt_nop") ||
 	    !strcmp(func->name, "_paravirt_ident_64"))
+		return;
+
+	/* already added this function */
+	if (!list_empty(&func->pv_target))
 		return;
 
 	list_add(&func->pv_target, &f->pv_ops[idx].targets);

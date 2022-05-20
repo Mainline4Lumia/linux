@@ -28,6 +28,8 @@
 #define BR_MAX_PORTS	(1<<BR_PORT_BITS)
 
 #define BR_MULTICAST_DEFAULT_HASH_MAX 4096
+#define BR_MULTICAST_QUERY_INTVL_MIN msecs_to_jiffies(1000)
+#define BR_MULTICAST_STARTUP_QUERY_INTVL_MIN BR_MULTICAST_QUERY_INTVL_MIN
 
 #define BR_HWDOM_MAX BITS_PER_LONG
 
@@ -176,6 +178,7 @@ enum {
  * @br_mcast_ctx: if MASTER flag set, this is the global vlan multicast context
  * @port_mcast_ctx: if MASTER flag unset, this is the per-port/vlan multicast
  *                  context
+ * @msti: if MASTER flag set, this holds the VLANs MST instance
  * @vlist: sorted list of VLAN entries
  * @rcu: used for entry destruction
  *
@@ -207,6 +210,8 @@ struct net_bridge_vlan {
 		struct net_bridge_mcast		br_mcast_ctx;
 		struct net_bridge_mcast_port	port_mcast_ctx;
 	};
+
+	u16				msti;
 
 	struct list_head		vlist;
 
@@ -344,6 +349,7 @@ struct net_bridge_mdb_entry {
 struct net_bridge_port {
 	struct net_bridge		*br;
 	struct net_device		*dev;
+	netdevice_tracker		dev_tracker;
 	struct list_head		list;
 
 	unsigned long			flags;
@@ -442,6 +448,7 @@ enum net_bridge_opts {
 	BROPT_NO_LL_LEARN,
 	BROPT_VLAN_BRIDGE_BINDING,
 	BROPT_MCAST_VLAN_SNOOPING_ENABLED,
+	BROPT_MST_ENABLED,
 };
 
 struct net_bridge {
@@ -963,6 +970,10 @@ int br_multicast_dump_querier_state(struct sk_buff *skb,
 				    int nest_attr);
 size_t br_multicast_querier_state_size(void);
 size_t br_rports_size(const struct net_bridge_mcast *brmctx);
+void br_multicast_set_query_intvl(struct net_bridge_mcast *brmctx,
+				  unsigned long val);
+void br_multicast_set_startup_query_intvl(struct net_bridge_mcast *brmctx,
+					  unsigned long val);
 
 static inline bool br_group_is_l2(const struct br_ip *group)
 {
@@ -1147,9 +1158,9 @@ br_multicast_port_ctx_get_global(const struct net_bridge_mcast_port *pmctx)
 static inline bool
 br_multicast_ctx_vlan_global_disabled(const struct net_bridge_mcast *brmctx)
 {
-	return br_opt_get(brmctx->br, BROPT_MCAST_VLAN_SNOOPING_ENABLED) &&
-	       br_multicast_ctx_is_vlan(brmctx) &&
-	       !(brmctx->vlan->priv_flags & BR_VLFLAG_GLOBAL_MCAST_ENABLED);
+	return br_multicast_ctx_is_vlan(brmctx) &&
+	       (!br_opt_get(brmctx->br, BROPT_MCAST_VLAN_SNOOPING_ENABLED) ||
+		!(brmctx->vlan->priv_flags & BR_VLFLAG_GLOBAL_MCAST_ENABLED));
 }
 
 static inline bool
@@ -1758,6 +1769,63 @@ static inline bool br_vlan_state_allowed(u8 state, bool learn_allow)
 }
 #endif
 
+/* br_mst.c */
+#ifdef CONFIG_BRIDGE_VLAN_FILTERING
+DECLARE_STATIC_KEY_FALSE(br_mst_used);
+static inline bool br_mst_is_enabled(struct net_bridge *br)
+{
+	return static_branch_unlikely(&br_mst_used) &&
+		br_opt_get(br, BROPT_MST_ENABLED);
+}
+
+int br_mst_set_state(struct net_bridge_port *p, u16 msti, u8 state,
+		     struct netlink_ext_ack *extack);
+int br_mst_vlan_set_msti(struct net_bridge_vlan *v, u16 msti);
+void br_mst_vlan_init_state(struct net_bridge_vlan *v);
+int br_mst_set_enabled(struct net_bridge *br, bool on,
+		       struct netlink_ext_ack *extack);
+size_t br_mst_info_size(const struct net_bridge_vlan_group *vg);
+int br_mst_fill_info(struct sk_buff *skb,
+		     const struct net_bridge_vlan_group *vg);
+int br_mst_process(struct net_bridge_port *p, const struct nlattr *mst_attr,
+		   struct netlink_ext_ack *extack);
+#else
+static inline bool br_mst_is_enabled(struct net_bridge *br)
+{
+	return false;
+}
+
+static inline int br_mst_set_state(struct net_bridge_port *p, u16 msti,
+				   u8 state, struct netlink_ext_ack *extack)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int br_mst_set_enabled(struct net_bridge *br, bool on,
+				     struct netlink_ext_ack *extack)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline size_t br_mst_info_size(const struct net_bridge_vlan_group *vg)
+{
+	return 0;
+}
+
+static inline int br_mst_fill_info(struct sk_buff *skb,
+				   const struct net_bridge_vlan_group *vg)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int br_mst_process(struct net_bridge_port *p,
+				 const struct nlattr *mst_attr,
+				 struct netlink_ext_ack *extack)
+{
+	return -EOPNOTSUPP;
+}
+#endif
+
 struct nf_br_ops {
 	int (*br_dev_xmit_hook)(struct sk_buff *skb);
 };
@@ -1978,7 +2046,7 @@ void br_switchdev_mdb_notify(struct net_device *dev,
 			     struct net_bridge_port_group *pg,
 			     int type);
 int br_switchdev_port_vlan_add(struct net_device *dev, u16 vid, u16 flags,
-			       struct netlink_ext_ack *extack);
+			       bool changed, struct netlink_ext_ack *extack);
 int br_switchdev_port_vlan_del(struct net_device *dev, u16 vid);
 void br_switchdev_init(struct net_bridge *br);
 
@@ -2045,8 +2113,8 @@ static inline int br_switchdev_set_port_flag(struct net_bridge_port *p,
 	return 0;
 }
 
-static inline int br_switchdev_port_vlan_add(struct net_device *dev,
-					     u16 vid, u16 flags,
+static inline int br_switchdev_port_vlan_add(struct net_device *dev, u16 vid,
+					     u16 flags, bool changed,
 					     struct netlink_ext_ack *extack)
 {
 	return -EOPNOTSUPP;

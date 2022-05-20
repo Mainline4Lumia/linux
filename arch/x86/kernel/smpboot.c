@@ -83,10 +83,6 @@
 #include <asm/hw_irq.h>
 #include <asm/stackprotector.h>
 
-#ifdef CONFIG_ACPI_CPPC_LIB
-#include <acpi/cppc_acpi.h>
-#endif
-
 /* representing HT siblings of each logical CPU */
 DEFINE_PER_CPU_READ_MOSTLY(cpumask_var_t, cpu_sibling_map);
 EXPORT_PER_CPU_SYMBOL(cpu_sibling_map);
@@ -154,8 +150,6 @@ static inline void smpboot_restore_warm_reset_vector(void)
 
 	*((volatile u32 *)phys_to_virt(TRAMPOLINE_PHYS_LOW)) = 0;
 }
-
-static void init_freq_invariance(bool secondary, bool cppc_ready);
 
 /*
  * Report back to the Boot Processor during boot time or to the caller processor
@@ -576,6 +570,17 @@ static struct sched_domain_topology_level x86_numa_in_package_topology[] = {
 #ifdef CONFIG_SCHED_MC
 	{ cpu_coregroup_mask, x86_core_flags, SD_INIT_NAME(MC) },
 #endif
+	{ NULL, },
+};
+
+static struct sched_domain_topology_level x86_hybrid_topology[] = {
+#ifdef CONFIG_SCHED_SMT
+	{ cpu_smt_mask, x86_smt_flags, SD_INIT_NAME(SMT) },
+#endif
+#ifdef CONFIG_SCHED_MC
+	{ cpu_coregroup_mask, x86_core_flags, SD_INIT_NAME(MC) },
+#endif
+	{ cpu_cpu_mask, SD_INIT_NAME(DIE) },
 	{ NULL, },
 };
 
@@ -1469,8 +1474,11 @@ void __init native_smp_cpus_done(unsigned int max_cpus)
 
 	calculate_max_logical_packages();
 
+	/* XXX for now assume numa-in-package and hybrid don't overlap */
 	if (x86_has_numa_in_package)
 		set_sched_topology(x86_numa_in_package_topology);
+	if (cpu_feature_enabled(X86_FEATURE_HYBRID_CPU))
+		set_sched_topology(x86_hybrid_topology);
 
 	nmi_selftest();
 	impress_friends();
@@ -2083,48 +2091,6 @@ out:
 	return true;
 }
 
-#ifdef CONFIG_ACPI_CPPC_LIB
-static bool amd_set_max_freq_ratio(void)
-{
-	struct cppc_perf_caps perf_caps;
-	u64 highest_perf, nominal_perf;
-	u64 perf_ratio;
-	int rc;
-
-	rc = cppc_get_perf_caps(0, &perf_caps);
-	if (rc) {
-		pr_debug("Could not retrieve perf counters (%d)\n", rc);
-		return false;
-	}
-
-	highest_perf = amd_get_highest_perf();
-	nominal_perf = perf_caps.nominal_perf;
-
-	if (!highest_perf || !nominal_perf) {
-		pr_debug("Could not retrieve highest or nominal performance\n");
-		return false;
-	}
-
-	perf_ratio = div_u64(highest_perf * SCHED_CAPACITY_SCALE, nominal_perf);
-	/* midpoint between max_boost and max_P */
-	perf_ratio = (perf_ratio + SCHED_CAPACITY_SCALE) >> 1;
-	if (!perf_ratio) {
-		pr_debug("Non-zero highest/nominal perf values led to a 0 ratio\n");
-		return false;
-	}
-
-	arch_turbo_freq_ratio = perf_ratio;
-	arch_set_max_freq_ratio(false);
-
-	return true;
-}
-#else
-static bool amd_set_max_freq_ratio(void)
-{
-	return false;
-}
-#endif
-
 static void init_counter_refs(void)
 {
 	u64 aperf, mperf;
@@ -2153,7 +2119,7 @@ static void register_freq_invariance_syscore_ops(void)
 static inline void register_freq_invariance_syscore_ops(void) {}
 #endif
 
-static void init_freq_invariance(bool secondary, bool cppc_ready)
+void init_freq_invariance(bool secondary, bool cppc_ready)
 {
 	bool ret = false;
 
@@ -2173,7 +2139,7 @@ static void init_freq_invariance(bool secondary, bool cppc_ready)
 		if (!cppc_ready) {
 			return;
 		}
-		ret = amd_set_max_freq_ratio();
+		ret = amd_set_max_freq_ratio(&arch_turbo_freq_ratio);
 	}
 
 	if (ret) {
@@ -2185,22 +2151,6 @@ static void init_freq_invariance(bool secondary, bool cppc_ready)
 		pr_debug("Couldn't determine max cpu frequency, necessary for scale-invariant accounting.\n");
 	}
 }
-
-#ifdef CONFIG_ACPI_CPPC_LIB
-static DEFINE_MUTEX(freq_invariance_lock);
-
-void init_freq_invariance_cppc(void)
-{
-	static bool secondary;
-
-	mutex_lock(&freq_invariance_lock);
-
-	init_freq_invariance(secondary, true);
-	secondary = true;
-
-	mutex_unlock(&freq_invariance_lock);
-}
-#endif
 
 static void disable_freq_invariance_workfn(struct work_struct *work)
 {
@@ -2249,9 +2199,5 @@ void arch_scale_freq_tick(void)
 error:
 	pr_warn("Scheduler frequency invariance went wobbly, disabling!\n");
 	schedule_work(&disable_freq_invariance_work);
-}
-#else
-static inline void init_freq_invariance(bool secondary, bool cppc_ready)
-{
 }
 #endif /* CONFIG_X86_64 */

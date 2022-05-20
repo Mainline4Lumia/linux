@@ -316,18 +316,22 @@ int aq_nic_ndev_register(struct aq_nic_s *self)
 	aq_macsec_init(self);
 #endif
 
-	mutex_lock(&self->fwreq_mutex);
-	err = self->aq_fw_ops->get_mac_permanent(self->aq_hw, addr);
-	mutex_unlock(&self->fwreq_mutex);
-	if (err)
-		goto err_exit;
+	if (platform_get_ethdev_address(&self->pdev->dev, self->ndev) != 0) {
+		// If DT has none or an invalid one, ask device for MAC address
+		mutex_lock(&self->fwreq_mutex);
+		err = self->aq_fw_ops->get_mac_permanent(self->aq_hw, addr);
+		mutex_unlock(&self->fwreq_mutex);
 
-	eth_hw_addr_set(self->ndev, addr);
+		if (err)
+			goto err_exit;
 
-	if (!is_valid_ether_addr(self->ndev->dev_addr) ||
-	    !aq_nic_is_valid_ether_addr(self->ndev->dev_addr)) {
-		netdev_warn(self->ndev, "MAC is invalid, will use random.");
-		eth_hw_addr_random(self->ndev);
+		if (is_valid_ether_addr(addr) &&
+		    aq_nic_is_valid_ether_addr(addr)) {
+			eth_hw_addr_set(self->ndev, addr);
+		} else {
+			netdev_warn(self->ndev, "MAC is invalid, will use random.");
+			eth_hw_addr_random(self->ndev);
+		}
 	}
 
 #if defined(AQ_CFG_MAC_ADDR_PERMANENT)
@@ -482,8 +486,8 @@ int aq_nic_start(struct aq_nic_s *self)
 	if (err < 0)
 		goto err_exit;
 
-	for (i = 0U, aq_vec = self->aq_vec[0];
-		self->aq_vecs > i; ++i, aq_vec = self->aq_vec[i]) {
+	for (i = 0U; self->aq_vecs > i; ++i) {
+		aq_vec = self->aq_vec[i];
 		err = aq_vec_start(aq_vec);
 		if (err < 0)
 			goto err_exit;
@@ -513,8 +517,8 @@ int aq_nic_start(struct aq_nic_s *self)
 		mod_timer(&self->polling_timer, jiffies +
 			  AQ_CFG_POLLING_TIMER_INTERVAL);
 	} else {
-		for (i = 0U, aq_vec = self->aq_vec[0];
-			self->aq_vecs > i; ++i, aq_vec = self->aq_vec[i]) {
+		for (i = 0U; self->aq_vecs > i; ++i) {
+			aq_vec = self->aq_vec[i];
 			err = aq_pci_func_alloc_irq(self, i, self->ndev->name,
 						    aq_vec_isr, aq_vec,
 						    aq_vec_get_affinity_mask(aq_vec));
@@ -905,8 +909,14 @@ u64 *aq_nic_get_stats(struct aq_nic_s *self, u64 *data)
 	data[++i] = stats->mbtc;
 	data[++i] = stats->bbrc;
 	data[++i] = stats->bbtc;
-	data[++i] = stats->ubrc + stats->mbrc + stats->bbrc;
-	data[++i] = stats->ubtc + stats->mbtc + stats->bbtc;
+	if (stats->brc)
+		data[++i] = stats->brc;
+	else
+		data[++i] = stats->ubrc + stats->mbrc + stats->bbrc;
+	if (stats->btc)
+		data[++i] = stats->btc;
+	else
+		data[++i] = stats->ubtc + stats->mbtc + stats->bbtc;
 	data[++i] = stats->dma_pkt_rc;
 	data[++i] = stats->dma_pkt_tc;
 	data[++i] = stats->dma_oct_rc;

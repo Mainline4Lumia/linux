@@ -505,7 +505,7 @@ static int mlx5_lag_create_inner_ttc_table(struct mlx5_lag *ldev)
 	struct ttc_params ttc_params = {};
 
 	mlx5_lag_set_inner_ttc_params(ldev, &ttc_params);
-	port_sel->inner.ttc = mlx5_create_ttc_table(dev, &ttc_params);
+	port_sel->inner.ttc = mlx5_create_inner_ttc_table(dev, &ttc_params);
 	if (IS_ERR(port_sel->inner.ttc))
 		return PTR_ERR(port_sel->inner.ttc);
 
@@ -608,4 +608,5 @@ void mlx5_lag_port_sel_destroy(struct mlx5_lag *ldev)
 	if (port_sel->tunnel)
 		mlx5_destroy_ttc_table(port_sel->inner.ttc);
 	mlx5_lag_destroy_definers(ldev);
+	memset(port_sel, 0, sizeof(*port_sel));
 }

@@ -256,6 +256,10 @@ static int tps6598x_connect(struct tps6598x *tps, u32 status)
 	typec_set_pwr_opmode(tps->port, mode);
 	typec_set_pwr_role(tps->port, TPS_STATUS_TO_TYPEC_PORTROLE(status));
 	typec_set_vconn_role(tps->port, TPS_STATUS_TO_TYPEC_VCONN(status));
+	if (TPS_STATUS_TO_UPSIDE_DOWN(status))
+		typec_set_orientation(tps->port, TYPEC_ORIENTATION_REVERSE);
+	else
+		typec_set_orientation(tps->port, TYPEC_ORIENTATION_NORMAL);
 	tps6598x_set_data_role(tps, TPS_STATUS_TO_TYPEC_DATAROLE(status), true);
 
 	tps->partner = typec_register_partner(tps->port, &desc);
@@ -278,6 +282,7 @@ static void tps6598x_disconnect(struct tps6598x *tps, u32 status)
 	typec_set_pwr_opmode(tps->port, TYPEC_PWR_MODE_USB);
 	typec_set_pwr_role(tps->port, TPS_STATUS_TO_TYPEC_PORTROLE(status));
 	typec_set_vconn_role(tps->port, TPS_STATUS_TO_TYPEC_VCONN(status));
+	typec_set_orientation(tps->port, TYPEC_ORIENTATION_NONE);
 	tps6598x_set_data_role(tps, TPS_STATUS_TO_TYPEC_DATAROLE(status), false);
 
 	power_supply_changed(tps->psy);
@@ -653,7 +658,7 @@ static int cd321x_switch_power_state(struct tps6598x *tps, u8 target_state)
 	if (state == target_state)
 		return 0;
 
-	ret = tps6598x_exec_cmd(tps, "SPSS", sizeof(u8), &target_state, 0, NULL);
+	ret = tps6598x_exec_cmd(tps, "SSPS", sizeof(u8), &target_state, 0, NULL);
 	if (ret)
 		return ret;
 
@@ -707,6 +712,7 @@ static int tps6598x_probe(struct i2c_client *client)
 	u32 conf;
 	u32 vid;
 	int ret;
+	u64 mask1;
 
 	tps = devm_kzalloc(&client->dev, sizeof(*tps), GFP_KERNEL);
 	if (!tps)
@@ -730,11 +736,6 @@ static int tps6598x_probe(struct i2c_client *client)
 	if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		tps->i2c_protocol = true;
 
-	/* Make sure the controller has application firmware running */
-	ret = tps6598x_check_mode(tps);
-	if (ret)
-		return ret;
-
 	if (np && of_device_is_compatible(np, "apple,cd321x")) {
 		/* Switch CD321X chips to the correct system power state */
 		ret = cd321x_switch_power_state(tps, TPS_SYSTEM_POWER_STATE_S0);
@@ -742,32 +743,35 @@ static int tps6598x_probe(struct i2c_client *client)
 			return ret;
 
 		/* CD321X chips have all interrupts masked initially */
-		ret = tps6598x_write64(tps, TPS_REG_INT_MASK1,
-					APPLE_CD_REG_INT_POWER_STATUS_UPDATE |
-					APPLE_CD_REG_INT_DATA_STATUS_UPDATE |
-					APPLE_CD_REG_INT_PLUG_EVENT);
-		if (ret)
-			return ret;
+		mask1 = APPLE_CD_REG_INT_POWER_STATUS_UPDATE |
+			APPLE_CD_REG_INT_DATA_STATUS_UPDATE |
+			APPLE_CD_REG_INT_PLUG_EVENT;
 
 		irq_handler = cd321x_interrupt;
 	} else {
 		/* Enable power status, data status and plug event interrupts */
-		ret = tps6598x_write64(tps, TPS_REG_INT_MASK1,
-				       TPS_REG_INT_POWER_STATUS_UPDATE |
-				       TPS_REG_INT_DATA_STATUS_UPDATE |
-				       TPS_REG_INT_PLUG_EVENT);
-		if (ret)
-			return ret;
+		mask1 = TPS_REG_INT_POWER_STATUS_UPDATE |
+			TPS_REG_INT_DATA_STATUS_UPDATE |
+			TPS_REG_INT_PLUG_EVENT;
 	}
+
+	/* Make sure the controller has application firmware running */
+	ret = tps6598x_check_mode(tps);
+	if (ret)
+		return ret;
+
+	ret = tps6598x_write64(tps, TPS_REG_INT_MASK1, mask1);
+	if (ret)
+		return ret;
 
 	ret = tps6598x_read32(tps, TPS_REG_STATUS, &status);
 	if (ret < 0)
-		return ret;
+		goto err_clear_mask;
 	trace_tps6598x_status(status);
 
 	ret = tps6598x_read32(tps, TPS_REG_SYSTEM_CONF, &conf);
 	if (ret < 0)
-		return ret;
+		goto err_clear_mask;
 
 	/*
 	 * This fwnode has a "compatible" property, but is never populated as a
@@ -856,7 +860,8 @@ err_role_put:
 	usb_role_switch_put(tps->role_sw);
 err_fwnode_put:
 	fwnode_handle_put(fwnode);
-
+err_clear_mask:
+	tps6598x_write64(tps, TPS_REG_INT_MASK1, 0);
 	return ret;
 }
 

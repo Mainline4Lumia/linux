@@ -5,6 +5,7 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/if_vlan.h>
+#include <linux/filter.h>
 #include <net/dsa.h>
 #include <net/dst_metadata.h>
 #include <net/ip.h>
@@ -21,6 +22,7 @@
 #include <linux/ppp_defs.h>
 #include <linux/stddef.h>
 #include <linux/if_ether.h>
+#include <linux/if_hsr.h>
 #include <linux/mpls.h>
 #include <linux/tcp.h>
 #include <linux/ptp_classify.h>
@@ -238,7 +240,7 @@ void
 skb_flow_dissect_ct(const struct sk_buff *skb,
 		    struct flow_dissector *flow_dissector,
 		    void *target_container, u16 *ctinfo_map,
-		    size_t mapsize, bool post_ct)
+		    size_t mapsize, bool post_ct, u16 zone)
 {
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
 	struct flow_dissector_key_ct *key;
@@ -260,6 +262,7 @@ skb_flow_dissect_ct(const struct sk_buff *skb,
 	if (!ct) {
 		key->ct_state = TCA_FLOWER_KEY_CT_FLAGS_TRACKED |
 				TCA_FLOWER_KEY_CT_FLAGS_INVALID;
+		key->ct_zone = zone;
 		return;
 	}
 
@@ -1029,7 +1032,7 @@ bool __skb_flow_dissect(const struct net *net,
 		key_eth_addrs = skb_flow_dissector_target(flow_dissector,
 							  FLOW_DISSECTOR_KEY_ETH_ADDRS,
 							  target_container);
-		memcpy(key_eth_addrs, &eth->h_dest, sizeof(*key_eth_addrs));
+		memcpy(key_eth_addrs, eth, sizeof(*key_eth_addrs));
 	}
 
 proto_again:
@@ -1180,6 +1183,7 @@ proto_again:
 					 VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT;
 			}
 			key_vlan->vlan_tpid = saved_vlan_tpid;
+			key_vlan->vlan_eth_type = proto;
 		}
 
 		fdret = FLOW_DISSECT_RET_PROTO_AGAIN;
@@ -1277,6 +1281,23 @@ proto_again:
 
 		nhoff += ntohs(hdr->message_length);
 		fdret = FLOW_DISSECT_RET_OUT_GOOD;
+		break;
+	}
+
+	case htons(ETH_P_PRP):
+	case htons(ETH_P_HSR): {
+		struct hsr_tag *hdr, _hdr;
+
+		hdr = __skb_header_pointer(skb, nhoff, sizeof(_hdr), data, hlen,
+					   &_hdr);
+		if (!hdr) {
+			fdret = FLOW_DISSECT_RET_OUT_BAD;
+			break;
+		}
+
+		proto = hdr->encap_proto;
+		nhoff += HSR_HLEN;
+		fdret = FLOW_DISSECT_RET_PROTO_AGAIN;
 		break;
 	}
 
@@ -1460,7 +1481,7 @@ out_bad:
 }
 EXPORT_SYMBOL(__skb_flow_dissect);
 
-static siphash_key_t hashrnd __read_mostly;
+static siphash_aligned_key_t hashrnd;
 static __always_inline void __flow_hash_secret_init(void)
 {
 	net_get_random_once(&hashrnd, sizeof(hashrnd));

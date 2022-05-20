@@ -1659,6 +1659,21 @@ bool is_pmu_core(const char *name)
 	return !strcmp(name, "cpu") || is_arm_pmu_core(name);
 }
 
+static bool pmu_alias_is_duplicate(struct sevent *alias_a,
+				   struct sevent *alias_b)
+{
+	/* Different names -> never duplicates */
+	if (strcmp(alias_a->name, alias_b->name))
+		return false;
+
+	/* Don't remove duplicates for hybrid PMUs */
+	if (perf_pmu__is_hybrid(alias_a->pmu) &&
+	    perf_pmu__is_hybrid(alias_b->pmu))
+		return false;
+
+	return true;
+}
+
 void print_pmu_events(const char *event_glob, bool name_only, bool quiet_flag,
 			bool long_desc, bool details_flag, bool deprecated,
 			const char *pmu_name)
@@ -1744,12 +1759,8 @@ void print_pmu_events(const char *event_glob, bool name_only, bool quiet_flag,
 	qsort(aliases, len, sizeof(struct sevent), cmp_sevent);
 	for (j = 0; j < len; j++) {
 		/* Skip duplicates */
-		if (j > 0 && !strcmp(aliases[j].name, aliases[j - 1].name)) {
-			if (!aliases[j].pmu || !aliases[j - 1].pmu ||
-			    !strcmp(aliases[j].pmu, aliases[j - 1].pmu)) {
-				continue;
-			}
-		}
+		if (j > 0 && pmu_alias_is_duplicate(&aliases[j], &aliases[j - 1]))
+			continue;
 
 		if (name_only) {
 			printf("%s ", aliases[j].name);
@@ -1987,7 +1998,8 @@ int perf_pmu__cpus_match(struct perf_pmu *pmu, struct perf_cpu_map *cpus,
 {
 	struct perf_cpu_map *pmu_cpus = pmu->cpus;
 	struct perf_cpu_map *matched_cpus, *unmatched_cpus;
-	int matched_nr = 0, unmatched_nr = 0;
+	struct perf_cpu cpu;
+	int i, matched_nr = 0, unmatched_nr = 0;
 
 	matched_cpus = perf_cpu_map__default_new();
 	if (!matched_cpus)
@@ -1999,14 +2011,11 @@ int perf_pmu__cpus_match(struct perf_pmu *pmu, struct perf_cpu_map *cpus,
 		return -1;
 	}
 
-	for (int i = 0; i < cpus->nr; i++) {
-		int cpu;
-
-		cpu = perf_cpu_map__idx(pmu_cpus, cpus->map[i]);
-		if (cpu == -1)
-			unmatched_cpus->map[unmatched_nr++] = cpus->map[i];
+	perf_cpu_map__for_each_cpu(cpu, i, cpus) {
+		if (!perf_cpu_map__has(pmu_cpus, cpu))
+			unmatched_cpus->map[unmatched_nr++] = cpu;
 		else
-			matched_cpus->map[matched_nr++] = cpus->map[i];
+			matched_cpus->map[matched_nr++] = cpu;
 	}
 
 	unmatched_cpus->nr = unmatched_nr;

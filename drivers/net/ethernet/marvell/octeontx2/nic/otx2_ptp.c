@@ -5,6 +5,8 @@
  *
  */
 
+#include <linux/module.h>
+
 #include "otx2_common.h"
 #include "otx2_ptp.h"
 
@@ -290,6 +292,14 @@ int otx2_ptp_init(struct otx2_nic *pfvf)
 		      PTR_ERR(ptp_ptr->ptp_clock) : -ENODEV;
 		kfree(ptp_ptr);
 		goto error;
+	}
+
+	if (is_dev_otx2(pfvf->pdev)) {
+		ptp_ptr->convert_rx_ptp_tstmp = &otx2_ptp_convert_rx_timestamp;
+		ptp_ptr->convert_tx_ptp_tstmp = &otx2_ptp_convert_tx_timestamp;
+	} else {
+		ptp_ptr->convert_rx_ptp_tstmp = &cn10k_ptp_convert_timestamp;
+		ptp_ptr->convert_tx_ptp_tstmp = &cn10k_ptp_convert_timestamp;
 	}
 
 	pfvf->ptp = ptp_ptr;
