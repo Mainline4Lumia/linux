@@ -21,6 +21,8 @@
 
 #include "st_sensors_core.h"
 
+#define VERIFY_ID_RETRY_COUNT 3
+
 int st_sensors_write_data_with_mask(struct iio_dev *indio_dev,
 				    u8 reg_addr, u8 mask, u8 data)
 {
@@ -594,22 +596,29 @@ EXPORT_SYMBOL_NS(st_sensors_get_settings_index, IIO_ST_SENSORS);
 int st_sensors_verify_id(struct iio_dev *indio_dev)
 {
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
-	int wai, err;
+	int wai, err, i;
 
 	if (sdata->sensor_settings->wai_addr) {
-		err = regmap_read(sdata->regmap,
-				  sdata->sensor_settings->wai_addr, &wai);
-		if (err < 0) {
-			dev_err(&indio_dev->dev,
-				"failed to read Who-Am-I register.\n");
-			return err;
+		for (i = 0; i < VERIFY_ID_RETRY_COUNT; i++) {
+			err = regmap_read_poll_timeout(sdata->regmap,
+					sdata->sensor_settings->wai_addr, wai,
+					sdata->sensor_settings->wai == wai,
+					2000, 100000);
+			if (!err)
+				break;
 		}
 
-		if (sdata->sensor_settings->wai != wai) {
+		if (err == -ETIMEDOUT) {
 			dev_err(&indio_dev->dev,
 				"%s: WhoAmI mismatch (0x%x).\n",
 				indio_dev->name, wai);
 			return -EINVAL;
+		}
+
+		if (err < 0) {
+			dev_err(&indio_dev->dev,
+				"failed to read Who-Am-I register.\n");
+			return err;
 		}
 	}
 
