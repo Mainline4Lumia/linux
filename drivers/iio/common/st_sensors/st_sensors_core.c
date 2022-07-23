@@ -233,7 +233,7 @@ int st_sensors_power_enable(struct iio_dev *indio_dev)
 					     ARRAY_SIZE(regulator_names),
 					     regulator_names);
 	if (err)
-		return dev_err_probe(&indio_dev->dev, err,
+		return dev_err_probe(parent, err,
 				     "unable to enable supplies\n");
 
 	return 0;
