@@ -21,6 +21,24 @@
 	aliases {
 		mmc0 = &sdhc_1; /* eMMC */
 		mmc1 = &sdhc_2; /* microSD */
+		display0 = &framebuffer0;
+	};
+
+	chosen {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		stdout-path = "display0";
+
+		framebuffer0: framebuffer@400000 {
+			compatible = "simple-framebuffer";
+			reg = <0x400000 0x800000>;
+			format = "a8r8g8b8";
+			width = <720>;
+			height = <1280>;
+			stride = <(720 * 4)>;
+		};
 	};
 
 	/*
@@ -34,6 +52,11 @@
 
 		smem_region: smem@fa00000 {
 			reg = <0xfa00000 0x100000>;
+			no-map;
+		};
+		
+		display_reserved: framebuffer@400000 {
+			reg = <0x400000 0x800000>;
 			no-map;
 		};
 	};
