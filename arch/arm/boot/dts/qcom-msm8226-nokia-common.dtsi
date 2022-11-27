@@ -10,6 +10,7 @@
 
 #include "qcom-msm8226.dtsi"
 #include "qcom-pm8226.dtsi"
+#include <dt-bindings/input/input.h>
 
 /*
  * Delete all generic (msm8226.dtsi) reserved
@@ -38,6 +39,21 @@
 			width = <720>;
 			height = <1280>;
 			stride = <(720 * 4)>;
+		};
+	};
+
+	gpio_keys: gpio-keys {
+		compatible = "gpio-keys";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_keys_active>;
+
+		label = "GPIO Buttons";
+
+		volume-up {
+			label = "Volume Up";
+			gpios = <&tlmm 106 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEUP>;
 		};
 	};
 
@@ -241,4 +257,13 @@
 	extcon = <&smbb>;
 	v1p8-supply = <&pm8226_l10>;
 	v3p3-supply = <&pm8226_l20>;
+};
+
+&tlmm {
+	gpio_keys_active: gpio-keys-active {
+		pins = "gpio106", "gpio107", "gpio108";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-up;
+	};
 };
