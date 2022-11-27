@@ -106,6 +106,21 @@
 	};
 };
 
+&blsp1_i2c4 {
+	status = "okay";
+
+	qpdst900@39 {
+		compatible = "avago,apds9930";
+		reg = <0x39>;
+
+		interrupts-extended = <&tlmm 65 IRQ_TYPE_EDGE_FALLING>;
+
+		vdd-supply = <&pm8226_l15>;
+		vddio-supply = <&pm8226_l6>;
+
+	};
+};
+
 &blsp1_uart3 {
 	status = "okay";
 };

@@ -16,6 +16,11 @@
 	chassis-type = "handset";
 };
 
+&blsp1_i2c4 {
+	status = "disabled";
+	/delete-node/ qpdst900@39;
+};
+
 &framebuffer0 {
 	width = <480>;
 	height = <854>;
