@@ -44,6 +44,10 @@
 	};
 };
 
+&blsp1_i2c2 {
+	/delete-node/ accelerometer@1e;
+};
+
 &blsp1_i2c5 {
 	status = "disabled";
 	/delete-node/ touchscreen@4b;
