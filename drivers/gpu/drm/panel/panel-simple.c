@@ -4574,6 +4574,36 @@ static const struct panel_desc_dsi osd101t2045_53ts = {
 	.lanes = 4,
 };
 
+static const struct drm_display_mode nokia_tara_mode = {
+    .clock = ((480 + 73 + 10 + 73) * (854 + 6 + 5 + 6) * 60) / 1000,
+    .hdisplay = 480,
+    .hsync_start = 480 + 73,
+    .hsync_end = 480 + 73 + 10,
+    .htotal = 480 + 73 + 10 + 73,
+    .vdisplay = 854,
+    .vsync_start = 854 + 6,
+    .vsync_end = 854 + 6 + 5,
+    .vtotal = 854 + 6 + 5 + 6,
+    .width_mm = 65,
+    .height_mm = 110,
+};
+
+static const struct panel_desc_dsi nokia_tara = {
+    .desc = {
+        .modes = &nokia_tara_mode,
+        .num_modes = 1,
+        .bpc = 8,
+        .size = {
+            .width = 65,
+            .height = 110,
+        },
+        .connector_type = DRM_MODE_CONNECTOR_DSI,
+    },
+    .flags = MIPI_DSI_MODE_VIDEO_BURST,
+    .format = MIPI_DSI_FMT_RGB888,
+    .lanes = 2,
+};
+
 static const struct of_device_id dsi_of_match[] = {
 	{
 		.compatible = "auo,b080uan01",
@@ -4596,6 +4626,10 @@ static const struct of_device_id dsi_of_match[] = {
 	}, {
 		.compatible = "osddisplays,osd101t2045-53ts",
 		.data = &osd101t2045_53ts
+	},
+	{
+    	.compatible = "nokia,tara",
+    	.data = &nokia_tara
 	}, {
 		/* sentinel */
 	}

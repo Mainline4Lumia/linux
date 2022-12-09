@@ -21,8 +21,42 @@
 	/delete-node/ qpdst900@39;
 };
 
-&framebuffer0 {
-	width = <480>;
-	height = <854>;
-	stride = <(480 * 3)>;
+&dsi0 {
+	status = "okay";
+
+	vdda-supply = <&pm8226_l15>;
+	vdd-supply = <&pm8226_l15>;
+	vddio-supply = <&pm8226_l6>;
+
+	panel@0 {
+		compatible = "nokia,tara";
+		reg = <0>;
+
+		power-supply = <&pm8226_l15>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&dsi0_out>;
+			};
+		};
+	};
+};
+
+&dsi0_out {
+	data-lanes = <0>;
+	remote-endpoint = <&panel_in>;
+};
+
+&dsi_phy0 {
+	status = "okay";
+	
+	vddio-supply = <&pm8226_l6>;
+};
+
+&mdp {
+	status = "okay";
+};
+
+&mdss {
+	status = "okay";
 };
