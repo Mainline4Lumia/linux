@@ -15,3 +15,17 @@
 	compatible = "microsoft,tesla", "qcom,msm8226";
 	chassis-type = "handset";
 };
+
+&gpio_keys {
+	camera-snapshot {
+		label = "Camera Snapshot";
+		gpios = <&tlmm 107 GPIO_ACTIVE_LOW>;
+		linux,code = <KEY_CAMERA>;
+	};
+
+	camera-focus {
+		label = "Camera Focus";
+		gpios = <&tlmm 108 GPIO_ACTIVE_LOW>;
+		linux,code = <KEY_CAMERA_FOCUS>;
+	};
+};
