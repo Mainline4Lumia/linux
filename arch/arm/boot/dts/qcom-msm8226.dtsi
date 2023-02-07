@@ -62,6 +62,57 @@
 		};
 	};
 
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		CPU0: cpu@0 {
+			compatible = "arm,cortex-a7";
+			enable-method = "qcom,msm8226-smp";
+			device_type = "cpu";
+			reg = <0>;
+			next-level-cache = <&L2>;
+			qcom,acc = <&acc0>;
+			qcom,saw = <&saw0>;
+
+			L2: l2-cache {
+				compatible = "cache";
+				cache-level = <2>;
+				qcom,saw = <&saw_l2>;
+			};
+		};
+
+		CPU1: cpu@1 {
+			compatible = "arm,cortex-a7";
+			enable-method = "qcom,msm8226-smp";
+			device_type = "cpu";
+			reg = <1>;
+			next-level-cache = <&L2>;
+			qcom,acc = <&acc1>;
+			qcom,saw = <&saw1>;
+		};
+
+		CPU2: cpu@2 {
+			compatible = "arm,cortex-a7";
+			enable-method = "qcom,msm8226-smp";
+			device_type = "cpu";
+			reg = <2>;
+			next-level-cache = <&L2>;
+			qcom,acc = <&acc2>;
+			qcom,saw = <&saw2>;
+		};
+
+		CPU3: cpu@3 {
+			compatible = "arm,cortex-a7";
+			enable-method = "qcom,msm8226-smp";
+			device_type = "cpu";
+			reg = <3>;
+			next-level-cache = <&L2>;
+			qcom,acc = <&acc3>;
+			qcom,saw = <&saw3>;
+		};
+	};
+
 	smd {
 		compatible = "qcom,smd";
 
@@ -629,6 +680,52 @@
 
 				label = "lpass";
 			};
+		};
+
+		saw0: power-controller@f9089000 {
+			compatible = "qcom,msm8226-saw2-v2.1-cpu", "qcom,saw2";
+			reg = <0xf9089000 0x1000>;
+		};
+
+		saw1: power-controller@f9099000 {
+			compatible = "qcom,msm8226-saw2-v2.1-cpu", "qcom,saw2";
+			reg = <0xf9099000 0x1000>;
+		};
+
+		saw2: power-controller@f90a9000 {
+			compatible = "qcom,msm8226-saw2-v2.1-cpu", "qcom,saw2";
+			reg = <0xf90a9000 0x1000>;
+		};
+
+		saw3: power-controller@f90b9000 {
+			compatible = "qcom,msm8226-saw2-v2.1-cpu", "qcom,saw2";
+			reg = <0xf90b9000 0x1000>;
+		};
+
+		saw_l2: power-controller@f9012000 {
+			compatible = "qcom,saw2";
+			reg = <0xf9012000 0x1000>;
+			regulator;
+		};
+
+		acc0: clock-controller@f9088000 {
+			compatible = "qcom,msm8226-smp";
+			reg = <0xf9088000 0x1000>;
+		};
+
+		acc1: clock-controller@f9098000 {
+			compatible = "qcom,msm8226-smp";
+			reg = <0xf9098000 0x1000>;
+		};
+
+		acc2: clock-controller@f90a8000 {
+			compatible = "qcom,msm8226-smp";
+			reg = <0xf90a8000 0x1000>;
+		};
+
+		acc3: clock-controller@f90b8000 {
+			compatible = "qcom,msm8226-smp";
+			reg = <0xf90b8000 0x1000>;
 		};
 	};
 
