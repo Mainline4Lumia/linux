@@ -235,10 +235,6 @@
 	vqmmc-supply = <&pm8226_l21>;
 };
 
-&smbb {
-	status = "okay";
-};
-
 &usb {
 	status = "okay";
 	extcon = <&smbb>;
